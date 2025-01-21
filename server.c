@@ -3,43 +3,61 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <signal.h>
 
 #define PORT 8080
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 2048
 
 // Function to handle a client
 void handle_client(int client_socket) {
     char buffer[BUFFER_SIZE] = {0};
-    char *response = 
-        "HTTP/1.1 200 OK\r\n"
-        "Content-Type: text/html"
-        "Content-Length: 13\r\n"
-        "\r\n"
-        "Hello, world!";
+    char *response;
 
-    // Read client request
+    // Read the HTTP request from the client
     read(client_socket, buffer, BUFFER_SIZE);
-    printf("Client request:\n%s\n", buffer);
+    printf("Request:\n%s\n", buffer);
 
-    // Send HTTP response
+    // Parse the request line (method and path)
+    char method[10], path[1024];
+    sscanf(buffer, "%s %s", method, path);
+
+    // Handle different routes
+    if (strcmp(path, "/") == 0) {
+        // Response for "/"
+        response =
+            "HTTP/1.1 200 OK\r\n"
+            "Content-Type: text/html\r\n"
+            "Content-Length: 27\r\n"
+            "\r\n"
+            "<h1>Welcome to my server!</h1>";
+    } else if (strcmp(path, "/about") == 0) {
+        // Response for "/about"
+        response =
+            "HTTP/1.1 200 OK\r\n"
+            "Content-Type: text/html\r\n"
+            "Content-Length: 21\r\n"
+            "\r\n"
+            "<h1>About Page</h1>";
+    } else {
+        // Response for unknown paths (404)
+        response =
+            "HTTP/1.1 404 Not Found\r\n"
+            "Content-Type: text/html\r\n"
+            "Content-Length: 22\r\n"
+            "\r\n"
+            "<h1>404 Not Found</h1>";
+    }
+
+    // Send the response to the client
     write(client_socket, response, strlen(response));
-    printf("Response sent to client.\n");
 
-    // Close client socket
+    // Close the connection
     close(client_socket);
-    exit(0);  // Exit child process
 }
 
 int main() {
     int server_fd, new_socket;
     struct sockaddr_in address;
     int addrlen = sizeof(address);
-
-    // Ignore SIGCHLD to prevent zombie processes
-    signal(SIGCHLD, SIG_IGN);
 
     // Create socket
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
@@ -58,7 +76,7 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
-    // Listen for connections
+    // Listen for incoming connections
     if (listen(server_fd, 5) < 0) {
         perror("Listen failed");
         close(server_fd);
@@ -75,14 +93,10 @@ int main() {
             continue;
         }
 
-        // Fork a new process to handle the client
-        if (fork() == 0) {
-            close(server_fd);  // Close the server socket in child process
-            handle_client(new_socket);  // Handle the client in the child process
-        }
-        close(new_socket);  // Parent closes the client socket
+        // Handle the client
+        handle_client(new_socket);
     }
 
-    close(server_fd);  // Close the server socket
+    close(server_fd);
     return 0;
 }
