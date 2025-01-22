@@ -3,52 +3,80 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
 
 #define PORT 8080
 #define BUFFER_SIZE 2048
+#define STATIC_DIR "www"  // Directory to store static files
 
-// Function to handle a client
+// Function to send a 404 response
+void send_404(int client_socket) {
+    const char *response =
+        "HTTP/1.1 404 Not Found\r\n"
+        "Content-Type: text/html\r\n"
+        "Content-Length: 22\r\n"
+        "\r\n"
+        "<h1>404 Not Found</h1>";
+    write(client_socket, response, strlen(response));
+}
+
+// Function to serve static files
+void serve_file(int client_socket, const char *file_path) {
+    char full_path[1024];
+    snprintf(full_path, sizeof(full_path), "%s%s", STATIC_DIR, file_path);
+
+    // Check if the file exists
+    FILE *file = fopen(full_path, "r");
+    if (file == NULL) {
+        send_404(client_socket);
+        return;
+    }
+
+    // Read file content
+    char file_buffer[BUFFER_SIZE];
+    size_t bytes_read = fread(file_buffer, 1, sizeof(file_buffer), file);
+    fclose(file);
+
+    // Create HTTP response
+    char response_header[256];
+    snprintf(response_header, sizeof(response_header),
+             "HTTP/1.1 200 OK\r\n"
+             "Content-Type: text/html\r\n"
+             "Content-Length: %zu\r\n"
+             "\r\n",
+             bytes_read);
+
+    // Send HTTP header and file content
+    write(client_socket, response_header, strlen(response_header));
+    write(client_socket, file_buffer, bytes_read);
+}
+
+// Function to handle a client request
 void handle_client(int client_socket) {
     char buffer[BUFFER_SIZE] = {0};
-    char *response;
 
-    // Read the HTTP request from the client
+    // Read the client's HTTP request
     read(client_socket, buffer, BUFFER_SIZE);
     printf("Request:\n%s\n", buffer);
 
-    // Parse the request line (method and path)
+    // Parse the request line
     char method[10], path[1024];
     sscanf(buffer, "%s %s", method, path);
 
-    // Handle different routes
-    if (strcmp(path, "/") == 0) {
-        // Response for "/"
-        response =
-            "HTTP/1.1 200 OK\r\n"
-            "Content-Type: text/html\r\n"
-            "Content-Length: 27\r\n"
-            "\r\n"
-            "<h1>Welcome to my server!</h1>";
-    } else if (strcmp(path, "/about") == 0) {
-        // Response for "/about"
-        response =
-            "HTTP/1.1 200 OK\r\n"
-            "Content-Type: text/html\r\n"
-            "Content-Length: 21\r\n"
-            "\r\n"
-            "<h1>About Page</h1>";
+    // Serve the requested file
+    if (strcmp(method, "GET") == 0) {
+        if (strcmp(path, "/") == 0) {
+            // Default to index.html if no file is specified
+            serve_file(client_socket, "/index.html");
+        } else {
+            serve_file(client_socket, path);
+        }
     } else {
-        // Response for unknown paths (404)
-        response =
-            "HTTP/1.1 404 Not Found\r\n"
-            "Content-Type: text/html\r\n"
-            "Content-Length: 22\r\n"
-            "\r\n"
-            "<h1>404 Not Found</h1>";
+        // Method not supported
+        send_404(client_socket);
     }
-
-    // Send the response to the client
-    write(client_socket, response, strlen(response));
 
     // Close the connection
     close(client_socket);
