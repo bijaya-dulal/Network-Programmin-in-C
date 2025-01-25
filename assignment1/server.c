@@ -30,14 +30,36 @@
     }
 
     //listen for incoming connections
-    
+      if (listen(server_fd, 2) < 0) { // Maximum 2 players at a time
+        perror("Listen failed");
+        close(server_fd);
+        exit(EXIT_FAILURE);
+    }
 
-
-    //accept clinet
-
+    printf("Server is listening on port %d...\n", PORT);
+    //accept clinet 1
+     if ((new_socket1 = accept(server_fd, (struct sockaddr *)&address, 
+                              (socklen_t *)&addrlen)) < 0) {
+        perror("Accept failed for Player 1");
+        close(server_fd);
+        exit(EXIT_FAILURE);
+    }
+    printf("Player 1 connected!\n");
+//accept clinet 2
+     if ((new_socket2 = accept(server_fd, (struct sockaddr *)&address, 
+                              (socklen_t *)&addrlen)) < 0) {
+        perror("Accept failed for Player 2");
+        close(server_fd);
+        exit(EXIT_FAILURE);
+    }
+    printf("Player 2 connected!\n");
     //game logic
 
     //close sockets
+    close(new_socket1);
+    close(new_socket2);
+    close(server_fd);
+
     return 0;
 
  }
