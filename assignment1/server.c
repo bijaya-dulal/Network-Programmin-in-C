@@ -13,6 +13,10 @@
    struct sockaddr_in address;
    int addrlen = sizeof(address);
     //create socket
+      if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
+        perror("Socket creation failed");
+        exit(EXIT_FAILURE);
+    }
 
     //bind socket to port
 
@@ -21,7 +25,8 @@
     //accept clinet
 
     //game logic
-    
+
     //close sockets
+    return 0;
 
  }
