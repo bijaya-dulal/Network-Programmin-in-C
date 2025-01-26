@@ -7,14 +7,13 @@
 #define PORT 8081
 #define BUFFER_SIZE 1024
 
-
-int main(){
+int main() {
     int client_socket;
     struct sockaddr_in server_address;
-    char buffer[BUFFER_SIZE]={0};
+    char buffer[BUFFER_SIZE] = {0};
 
-    //create socket
-     if ((client_socket = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+    // Create socket
+    if ((client_socket = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         perror("Socket creation failed");
         exit(EXIT_FAILURE);
     }
@@ -39,12 +38,32 @@ int main(){
 
     printf("Connected to the server.\n");
 
-    // Placeholder for communication with server
-    printf("You can now communicate with the server.\n");
+    // Read the welcome message from the server
+    read(client_socket, buffer, BUFFER_SIZE);
+    printf("%s", buffer);
+
+    // Game loop - client guesses the number
+    while (1) {
+        memset(buffer, 0, BUFFER_SIZE);
+        printf("Enter your guess: ");
+        fgets(buffer, BUFFER_SIZE, stdin);  // Get the user's input
+
+        // Send the guess to the server
+        write(client_socket, buffer, strlen(buffer));
+
+        // Read the server's response
+        memset(buffer, 0, BUFFER_SIZE);
+        read(client_socket, buffer, BUFFER_SIZE);
+        printf("%s", buffer);
+
+        // If the client wins, break out of the loop
+        if (strstr(buffer, "win") != NULL) {
+            break;
+        }
+    }
 
     // Close the socket
     close(client_socket);
 
     return 0;
-
 }
