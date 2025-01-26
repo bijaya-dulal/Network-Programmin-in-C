@@ -3,17 +3,16 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <time.h>
 
 #define PORT 8081
 #define BUFFER_SIZE 1024
-#define MAX_NUMBER 100  // Range for the random number
 
 int main() {
     int server_fd, new_socket;
     struct sockaddr_in address;
     int addrlen = sizeof(address);
     char buffer[BUFFER_SIZE] = {0};
-    int number_to_guess, client_guess;
 
     // Create socket
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
@@ -33,7 +32,7 @@ int main() {
     }
 
     // Listen for incoming connections
-    if (listen(server_fd, 1) < 0) { // Only one client allowed
+    if (listen(server_fd, 1) < 0) {
         perror("Listen failed");
         close(server_fd);
         exit(EXIT_FAILURE);
@@ -41,44 +40,45 @@ int main() {
 
     printf("Server is listening on port %d...\n", PORT);
 
-    // Accept the client connection
-    if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t *)&addrlen)) < 0) {
+    // Accept client connection
+    if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0) {
         perror("Accept failed");
         close(server_fd);
         exit(EXIT_FAILURE);
     }
     printf("Client connected!\n");
 
-    // Generate the random number to guess
-    srand(time(NULL));  // Seed the random number generator
-    number_to_guess = rand() % MAX_NUMBER + 1;  // Generate a number between 1 and MAX_NUMBER
-    printf("The number to guess has been generated (hidden to the client).\n");
+    // Generate a random number between 1 and 100
+    srand(time(0));
+    int number_to_guess = rand() % 100 + 1;
+    printf("Number to guess: %d (for testing purposes)\n", number_to_guess);  // For testing only
 
-    // Inform the client to start the game
-    char start_msg[] = "Welcome to the Guess the Number Game! Guess a number between 1 and 100.\n";
-    write(new_socket, start_msg, strlen(start_msg));
+    // Send welcome message
+    char welcome_msg[] = "Welcome to 'Guess the Number' game! Try to guess the number between 1 and 100.\n";
+    send(new_socket, welcome_msg, strlen(welcome_msg), 0);
 
-    // Game logic - client keeps guessing
+    // Game loop: Handle guesses from client
     while (1) {
-        memset(buffer, 0, BUFFER_SIZE);
-        write(new_socket, "Make your guess: ", 18);
-        read(new_socket, buffer, BUFFER_SIZE);
-        client_guess = atoi(buffer);  // Convert the guess to an integer
-        printf("Client guessed: %d\n", client_guess);
+        memset(buffer, 0, BUFFER_SIZE);  // Clear buffer
+        recv(new_socket, buffer, BUFFER_SIZE, 0);  // Receive guess from client
 
-        if (client_guess == number_to_guess) {
-            write(new_socket, "Correct! You win!\n", 18);
-            break;
-        } else if (client_guess < number_to_guess) {
-            write(new_socket, "Too low. Try again.\n", 20);
+        int guess = atoi(buffer);  // Convert guess to integer
+
+        if (guess < number_to_guess) {
+            char response[] = "Too low. Try again.\n";
+            send(new_socket, response, strlen(response), 0);
+        } else if (guess > number_to_guess) {
+            char response[] = "Too high. Try again.\n";
+            send(new_socket, response, strlen(response), 0);
         } else {
-            write(new_socket, "Too high. Try again.\n", 21);
+            char response[] = "Correct! You win!\n";
+            send(new_socket, response, strlen(response), 0);
+            break;  // End the game
         }
     }
 
     // Close the socket
     close(new_socket);
     close(server_fd);
-
     return 0;
 }

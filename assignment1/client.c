@@ -39,21 +39,26 @@ int main() {
     printf("Connected to the server.\n");
 
     // Read the welcome message from the server
-    read(client_socket, buffer, BUFFER_SIZE);
+    recv(client_socket, buffer, BUFFER_SIZE, 0);
     printf("%s", buffer);
 
     // Game loop - client guesses the number
     while (1) {
-        memset(buffer, 0, BUFFER_SIZE);
+        memset(buffer, 0, BUFFER_SIZE);  // Clear buffer after each guess
+
+        // Get the user's input
         printf("Enter your guess: ");
         fgets(buffer, BUFFER_SIZE, stdin);  // Get the user's input
 
+        // Remove trailing newline character if it exists
+        buffer[strcspn(buffer, "\n")] = 0;
+
         // Send the guess to the server
-        write(client_socket, buffer, strlen(buffer));
+        send(client_socket, buffer, strlen(buffer), 0);
 
         // Read the server's response
         memset(buffer, 0, BUFFER_SIZE);
-        read(client_socket, buffer, BUFFER_SIZE);
+        recv(client_socket, buffer, BUFFER_SIZE, 0);
         printf("%s", buffer);
 
         // If the client wins, break out of the loop
